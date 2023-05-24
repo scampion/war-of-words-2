@@ -2,7 +2,7 @@ import warnings
 
 import numpy as np
 # Remove Numba warnings.
-from numba.errors import NumbaPendingDeprecationWarning
+#from numba.errors import NumbaPendingDeprecationWarning
 from numba.typed import List
 from scipy.optimize import minimize
 
@@ -10,7 +10,7 @@ from ..features import ParameterVector
 from .base import Model, TrainedModel
 from .warofwords_jit import gradient_jit, log_likelihood_jit, probabilities_jit
 
-warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
+#warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
 
 
 class WarOfWords(Model):
