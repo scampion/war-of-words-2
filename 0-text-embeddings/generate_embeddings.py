@@ -253,15 +253,15 @@ def main(args):
 
     # Train and save models - on train set and on full set (for interpretation)
     print('Training and saving models...')
-    model_edit, model_title = train_save_models(legislature, task, epochs_edit, lr_edit, epochs_title, lr_title, output_dir=args.text_embedding)
+    model_edit, model_title = train_save_models(legislature, task, epochs_edit, lr_edit, epochs_title, lr_title, output_dir=args.text_embeddings_dir)
     if task=='new_edit' and legislature=='8':
-        fullmodel_edit, fullmodel_title = train_save_models(legislature, task, epochs_edit, lr_edit, epochs_title, lr_title, output_dir=args.text_embedding, model_type='full')
+        fullmodel_edit, fullmodel_title = train_save_models(legislature, task, epochs_edit, lr_edit, epochs_title, lr_title, output_dir=args.text_embeddings_dir, model_type='full')
 
     # Generate 
     print('Generating and saving embeddings...')
-    gen_save_embeddings(legislature, task, model_edit=model_edit,model_title=model_title,data_unrolled=data_unrolled, output_dir=args.text_embedding)
+    gen_save_embeddings(legislature, task, model_edit=model_edit,model_title=model_title,data_unrolled=data_unrolled, output_dir=args.text_embeddings_dir)
     if task=='new_edit' and legislature=='8':
-        gen_save_embeddings(legislature, task, model_edit=model_edit,model_title=model_title,data_unrolled=data_unrolled, output_dir=args.text_embedding, embed_type='full')
+        gen_save_embeddings(legislature, task, model_edit=model_edit,model_title=model_title,data_unrolled=data_unrolled, output_dir=args.text_embeddings_dir, embed_type='full')
 
     print('All done !')
 
