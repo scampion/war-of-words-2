@@ -3,6 +3,9 @@ import sys
 
 import numpy as np
 from warofwords import Features
+import numpy as np
+import warofwords
+from warofwords.utils import build_name, get_base_dir, parse_definition
 
 
 def docx2json(docxfile):
@@ -62,12 +65,10 @@ def get_features(datum):
     if just:
         vec['justification'] = 1
 
-
     i1, i2 = datum['edit_indices']['i1'], datum['edit_indices']['i2']
     j1, j2 = datum['edit_indices']['j1'], datum['edit_indices']['j2']
     vec['insert-length'] = np.log(1 + j2 - j1)
     vec['delete-length'] = np.log(1 + i2 - i1)
-
 
     for a in datum['authors']:
         vec[a['id']] = 1
@@ -89,10 +90,22 @@ def get_features(datum):
         add_title_embedding(vec, datum)
     featmat.append(vec.as_sparse_list())
 
+    return featmat
 
-def main(docxfile):
+
+def main(docxfile, model_path, model='WarOfWords'):
+    TrainedModel = getattr(warofwords, 'Trained' + model)
+    trained = TrainedModel.load(model_path)
+
     for datum in docx2json(docxfile):
-        get_features(datum)
+        test = get_features(datum)
+        acc = trained.accuracy(test)
+        los = trained.log_loss(test)
+        print(datum)
+        print(f'  Accuracy: {acc * 100:.2f}%')
+        print(f'  Log-loss: {los:.4f}')
+        print("#" * 80)
+
 
 if __name__ == '__main__':
-    main(sys.argv[1])
+    main(sys.argv[1], sys.argv[2])
