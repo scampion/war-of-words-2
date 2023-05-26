@@ -37,13 +37,15 @@ if __name__ == '__main__':
             group = mep.find('politicalGroup').text
             print(id, name, country)
             try:
-                print(id, name, country, genders[id])
-                gender, _ = genders.get(id, ("M", "Not found"))
+                gender, _ = genders.get(id, ("X", "Not found"))
+                print(id, name, country, gender)
                 data[id] = {"name": name, "nationality": country, "group-ep9": group, "gender": gender}
             except Exception as e:
                 print("🌩️ Error " + str(e))
+                continue
+
     outgoing = "https://www.europarl.europa.eu/meps/en/incoming-outgoing/outgoing/xml"
-    r = requests.get(letter_url)
+    r = requests.get(outgoing)
     content = r.content
     tree = ET.fromstring(content)
     for mep in tree.findall('mep'):
@@ -52,13 +54,14 @@ if __name__ == '__main__':
         country = mep.find('country').text
         # group-ep8
         group = mep.find('politicalGroup').text
-        print(id, name, country)
+        print("Outgoing", id, name, country)
         try:
-            print(id, name, country, genders[id])
-            gender, _ = genders.get(id, ("M", "Not found"))
+            gender, _ = genders.get(id, ("X", "Not found"))
+            print(id, name, country, gender)
             data[id] = {"name": name, "nationality": country, "group-ep9": group, "gender": gender}
         except Exception as e:
             print("🌩️ Error " + str(e))
+            continue
 
 
 
