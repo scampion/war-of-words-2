@@ -21,7 +21,8 @@ if __name__ == '__main__':
     data = {}
     genders = get_mep_gender()
     for letter in alphabet:
-        r = requests.get(url + letter)
+        letter_url = url + letter
+        r = requests.get(letter_url)
         if r.status_code != 200:
             continue
         content = r.content
@@ -41,7 +42,23 @@ if __name__ == '__main__':
                 data[id] = {"name": name, "nationality": country, "group-ep9": group, "gender": gender}
             except Exception as e:
                 print("🌩️ Error " + str(e))
-
+    outgoing = "https://www.europarl.europa.eu/meps/en/incoming-outgoing/outgoing/xml"
+    r = requests.get(letter_url)
+    content = r.content
+    tree = ET.fromstring(content)
+    for mep in tree.findall('mep'):
+        id = mep.find('id').text
+        name = mep.find('fullName').text
+        country = mep.find('country').text
+        # group-ep8
+        group = mep.find('politicalGroup').text
+        print(id, name, country)
+        try:
+            print(id, name, country, genders[id])
+            gender, _ = genders.get(id, ("M", "Not found"))
+            data[id] = {"name": name, "nationality": country, "group-ep9": group, "gender": gender}
+        except Exception as e:
+            print("🌩️ Error " + str(e))
 
 
 
