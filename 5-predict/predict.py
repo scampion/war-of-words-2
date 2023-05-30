@@ -1,4 +1,5 @@
 import json
+import re
 import sys
 
 import numpy as np
@@ -6,16 +7,41 @@ from warofwords import Features
 import numpy as np
 import warofwords
 from warofwords.utils import build_name, get_base_dir, parse_definition
+from nltk.tokenize import word_tokenize
+import fasttext
 
 import am2json
+
 
 def docx2json(docxfile):
     return json.dumps(docxfile)
 
 
-def get_text_features(add_embeddings):
-    # TODO: Implement this.
-    return np.zeros_like(10, 128)
+legislature = 8
+task = 'edit-full'
+model_edit = fasttext.load_model('../data/ep' + legislature + '-' + task + '-edit.bin')
+model_title = fasttext.load_model('../data/ep' + legislature + '-' + task + '-title.bin')
+
+
+def get_text_features(datum):
+    global model_edit, model_title
+    i1 = datum['edit_indices']['i1']
+    i2 = datum['edit_indices']['i2']
+    j1 = datum['edit_indices']['j1']
+    j2 = datum['edit_indices']['j2']
+
+    text_del = datum['text_original'][i1:i2]
+    text_ins = datum['text_amended'][j1:j2]
+    text_context_l = datum['text_original'][:i1]
+    text_context_r = datum['text_original'][i2:]
+
+    text_datum = '<con>' + ' <con>'.join(text_context_l) + ' <del>' + ' <del>'.join(
+        text_del) + ' <con>' + ' <con>'.join(text_context_r) + ' <ins>' + ' <ins>'.join(text_ins)
+    feats_edit = model_edit.get_sentence_vector(text_datum)
+
+    text_datum_title = ' '.join([re.sub('\d', 'D', w.lower()) for w in word_tokenize(datum['dossier_title'])])
+    feats_title = model_title.get_sentence_vector(text_datum_title)
+    return feats_edit, feats_title
 
 
 def get_features(datum):
@@ -43,7 +69,8 @@ def get_features(datum):
         features.add(a['group'], group='political-group')
         features.add(a['gender'], group='gender')
 
-    dim = add_embeddings(datum)
+    datum['edit-embedding'] = get_text_features(datum)
+    dim = len(edit_embedding)
 
     for d in range(dim):
         features.add(f'edit-dim-{d}', group='edit-embedding')
