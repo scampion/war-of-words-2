@@ -7,6 +7,7 @@ import numpy as np
 import warofwords
 from warofwords.utils import build_name, get_base_dir, parse_definition
 
+import am2json
 
 def docx2json(docxfile):
     return json.dumps(docxfile)
@@ -97,7 +98,7 @@ def main(docxfile, model_path, model='WarOfWords'):
     TrainedModel = getattr(warofwords, 'Trained' + model)
     trained = TrainedModel.load(model_path)
 
-    for datum in docx2json(docxfile):
+    for datum in am2json.extract_amendments(docxfile):
         test = get_features(datum)
         acc = trained.accuracy(test)
         los = trained.log_loss(test)
