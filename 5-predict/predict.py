@@ -49,6 +49,11 @@ def get_title_features(datum):
     text_datum_title = ' '.join([re.sub('\d', 'D', w.lower()) for w in word_tokenize(datum['dossier_title'])])
     return model_title.get_sentence_vector(text_datum_title)
 
+def add_title_embedding(vec, datum):
+    # Title text features.
+    for d, emb in enumerate(datum['title-embedding']):
+        vec[f'title-dim-{d}'] = emb
+
 
 def get_features(datum):
     featmats = list()
@@ -113,20 +118,15 @@ def get_features(datum):
         vec[a['gender']] = 1
         if a['rapporteur']:
             vec['rapporteur'] = 1
-    featmat.append(vec.as_sparse_list())
 
-    dossier = data[0]
+    dossier = datum
     vec[dossier['dossier_ref']] = 1
     vec[dossier['dossier_type']] = 1
     vec[dossier['legal_act']] = 1
     vec[dossier['committee']] = 1
     vec['bias'] = 1
-    if args.text_features:
-        # Add title embedding.
-        add_title_embedding(vec, datum)
-    featmat.append(vec.as_sparse_list())
-
-    return featmat
+    add_title_embedding(vec, datum)
+    return vec
 
 
 def main(docxfile, model_path, model='WarOfWords'):
