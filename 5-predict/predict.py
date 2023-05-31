@@ -17,8 +17,8 @@ def docx2json(docxfile):
     return json.dumps(docxfile)
 
 
-legislature = 8
-task = 'edit-full'
+legislature = str(8)
+task = 'new_edit-full'
 model_edit = fasttext.load_model('../data/ep' + legislature + '-' + task + '-edit.bin')
 model_title = fasttext.load_model('../data/ep' + legislature + '-' + task + '-title.bin')
 
@@ -42,6 +42,12 @@ def get_text_features(datum):
     text_datum_title = ' '.join([re.sub('\d', 'D', w.lower()) for w in word_tokenize(datum['dossier_title'])])
     feats_title = model_title.get_sentence_vector(text_datum_title)
     return feats_edit, feats_title
+
+
+def get_title_features(datum):
+    global model_title
+    text_datum_title = ' '.join([re.sub('\d', 'D', w.lower()) for w in word_tokenize(datum['dossier_title'])])
+    return model_title.get_sentence_vector(text_datum_title)
 
 
 def get_features(datum):
@@ -70,7 +76,9 @@ def get_features(datum):
         features.add(a['gender'], group='gender')
 
     datum['edit-embedding'] = get_text_features(datum)
-    dim = len(edit_embedding)
+    dim = len(datum['edit-embedding'])
+
+    datum['title-embedding'] = get_text_features(datum)
 
     for d in range(dim):
         features.add(f'edit-dim-{d}', group='edit-embedding')
