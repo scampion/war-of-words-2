@@ -23,6 +23,30 @@ model_edit = fasttext.load_model('../data/ep' + legislature + '-' + task + '-edi
 model_title = fasttext.load_model('../data/ep' + legislature + '-' + task + '-title.bin')
 
 
+
+def add_text_features(features, dim):
+    # Edit text features.
+    for d in range(dim):
+        features.add(f'edit-dim-{d}', group='edit-embedding')
+    # Title text features.
+    for d in range(dim):
+        features.add(f'title-dim-{d}', group='title-embedding')
+
+
+def add_edit_embedding(vec, datum):
+    # Edit text features.
+    for d, emb in enumerate(datum['edit-embedding']):
+        vec[f'edit-dim-{d}'] = emb
+
+
+def add_title_embedding(vec, datum):
+    # Title text features.
+    for d, emb in enumerate(datum['title-embedding']):
+        vec[f'title-dim-{d}'] = emb
+
+
+
+
 def get_text_features(datum):
     global model_edit, model_title
     i1 = datum['edit_indices']['i1']
@@ -41,7 +65,7 @@ def get_text_features(datum):
 
     text_datum_title = ' '.join([re.sub('\d', 'D', w.lower()) for w in word_tokenize(datum['dossier_title'])])
     feats_title = model_title.get_sentence_vector(text_datum_title)
-    return feats_edit, feats_title
+    return feats_edit.tolist(), feats_title.tolist()
 
 
 def get_title_features(datum):
@@ -49,51 +73,20 @@ def get_title_features(datum):
     text_datum_title = ' '.join([re.sub('\d', 'D', w.lower()) for w in word_tokenize(datum['dossier_title'])])
     return model_title.get_sentence_vector(text_datum_title)
 
-def add_title_embedding(vec, datum):
-    # Title text features.
-    for d, emb in enumerate(datum['title-embedding']):
-        vec[f'title-dim-{d}'] = emb
 
 
-def get_features(datum):
-    featmats = list()
-    # Initialize features.
-    features = Features()
-    features.add('bias', group='bias')
-    features.add('rapporteur', group='rapporteur')
-    features.add('insert-length', group='edit-length')
-    features.add('delete-length', group='edit-length')
-    features.add('justification', group='justification')
-    features.add('outsider', group='outsider')
-    features.add(datum['article_type'], group='article-type')
-    features.add(datum['edit_type'], group='edit-type')
-    # Dossier features.
-    features.add(datum['dossier_ref'], group='dossier')
-    features.add(datum['committee'], group='committee')
-    features.add(datum['dossier_type'], group='dossier-type')
-    # Add legal act.
-    features.add(datum['legal_act'], group='legal-act')
-    # MEP features.
-    for a in datum['authors']:
-        features.add(a['id'], group='mep')
-        features.add(a['nationality'], group='nationality')
-        features.add(a['group'], group='political-group')
-        features.add(a['gender'], group='gender')
+def get_features(datum, features):
 
-    datum['edit-embedding'] = get_text_features(datum)
-    dim = len(datum['edit-embedding'])
+    edit_embedding, title_embedding = get_text_features(datum)
+    datum['edit-embedding'] = edit_embedding
+    datum['title-embedding'] = title_embedding
+    dim = len(edit_embedding)
 
-    datum['title-embedding'] = get_text_features(datum)
-
-    for d in range(dim):
-        features.add(f'edit-dim-{d}', group='edit-embedding')
-        features.add(f'title-dim-{d}', group='title-embedding')
+    add_text_features(features, dim)
 
     vec = features.new_vector()
-    for d, emb in enumerate(datum['edit-embedding']):
-        vec[f'edit-dim-{d}'] = emb
-    for d, emb in enumerate(datum['title-embedding']):
-        vec[f'title-dim-{d}'] = emb
+    add_edit_embedding(vec, datum)
+    add_title_embedding(vec, datum)
 
     vec['outsider'] = 1
     vec[datum['article_type']] = 1
@@ -112,35 +105,47 @@ def get_features(datum):
     vec['delete-length'] = np.log(1 + i2 - i1)
 
     for a in datum['authors']:
-        vec[a['id']] = 1
+        if a['id'] in features._idx.keys(): # MEP of leg 9 not in leg 8 training data
+            vec[a['id']] = 1
         vec[a['nationality']] = 1
-        vec[a['group']] = 1
+        if a['group'] in features._idx.keys():
+            vec[a['group']] = 1
         vec[a['gender']] = 1
         if a['rapporteur']:
             vec['rapporteur'] = 1
 
+    return vec.as_array()
+
+def get_features_dossiers(datum, features):
+    vec = features.new_vector()
+
     dossier = datum
-    vec[dossier['dossier_ref']] = 1
-    vec[dossier['dossier_type']] = 1
+    if dossier['dossier_ref'] in features._idx.keys():
+        vec[dossier['dossier_ref']] = 1
+    if dossier['dossier_type'] in features._idx.keys():
+        vec[dossier['dossier_type']] = 1
     vec[dossier['legal_act']] = 1
-    vec[dossier['committee']] = 1
+    vec[dossier['committee']] = 1 #TODO check if committee is in features am2json
     vec['bias'] = 1
-    add_title_embedding(vec, datum)
-    return vec
+    return vec.as_array()
 
 
 def main(docxfile, model_path, model='WarOfWords'):
     TrainedModel = getattr(warofwords, 'Trained' + model)
     trained = TrainedModel.load(model_path)
-
+    import IPython;
+    IPython.embed()
+    featmat = list()
     for datum in am2json.extract_amendments(docxfile):
-        test = get_features(datum)
-        acc = trained.accuracy(test)
-        los = trained.log_loss(test)
-        print(datum)
-        print(f'  Accuracy: {acc * 100:.2f}%')
-        print(f'  Log-loss: {los:.4f}')
-        print("#" * 80)
+        test = get_features(datum, trained.features)
+        featmat.append(test)
+
+    vec_dossier = get_features_dossiers(datum, trained.features)
+    featmat.append(vec_dossier)
+    import IPython; IPython.embed()
+    score = trained.probabilities(np.array(featmat))
+    print(score)
+    print("#" * 80)
 
 
 if __name__ == '__main__':
