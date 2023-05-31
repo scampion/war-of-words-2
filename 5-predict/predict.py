@@ -133,8 +133,6 @@ def get_features_dossiers(datum, features):
 def main(docxfile, model_path, model='WarOfWords'):
     TrainedModel = getattr(warofwords, 'Trained' + model)
     trained = TrainedModel.load(model_path)
-    import IPython;
-    IPython.embed()
     featmat = list()
     for datum in am2json.extract_amendments(docxfile):
         test = get_features(datum, trained.features)
@@ -142,11 +140,12 @@ def main(docxfile, model_path, model='WarOfWords'):
 
     vec_dossier = get_features_dossiers(datum, trained.features)
     featmat.append(vec_dossier)
-    import IPython; IPython.embed()
-    score = trained.probabilities(np.array(featmat))
-    print(score)
-    print("#" * 80)
+    scores = trained.probabilities(np.array(featmat))
+    for datum, score in zip(am2json.extract_amendments(docxfile), scores):
+        yield datum, score
+
 
 
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2])
+    for datum, score in main(sys.argv[1], sys.argv[2]):
+        print(score, datum['text_original'], datum['text_amended'])
