@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 import sys
 
@@ -23,7 +24,6 @@ model_edit = fasttext.load_model('../data/ep' + legislature + '-' + task + '-edi
 model_title = fasttext.load_model('../data/ep' + legislature + '-' + task + '-title.bin')
 
 
-
 def add_text_features(features, dim):
     # Edit text features.
     for d in range(dim):
@@ -43,8 +43,6 @@ def add_title_embedding(vec, datum):
     # Title text features.
     for d, emb in enumerate(datum['title-embedding']):
         vec[f'title-dim-{d}'] = emb
-
-
 
 
 def get_text_features(datum):
@@ -74,9 +72,7 @@ def get_title_features(datum):
     return model_title.get_sentence_vector(text_datum_title)
 
 
-
 def get_features(datum, features):
-
     edit_embedding, title_embedding = get_text_features(datum)
     datum['edit-embedding'] = edit_embedding
     datum['title-embedding'] = title_embedding
@@ -89,8 +85,14 @@ def get_features(datum, features):
     add_title_embedding(vec, datum)
 
     vec['outsider'] = 1
-    vec[datum['article_type']] = 1
-    vec[datum['edit_type']] = 1
+    if datum['article_type'] and datum['article_type'] in features._idx.keys():
+        vec[datum['article_type']] = 1
+    else:
+        logging.warning(f'Article type {datum["article_type"]} not in features.')
+    if datum['edit_type'] and datum['edit_type'] in features._idx.keys():
+        vec[datum['edit_type']] = 1
+    else:
+        logging.warning(f'Edit type {datum["edit_type"]} not in features or None.')
     just = datum['justification']
     # With text features, the justification is either None or the whole
     # text, without text it is True or False.
@@ -105,7 +107,7 @@ def get_features(datum, features):
     vec['delete-length'] = np.log(1 + i2 - i1)
 
     for a in datum['authors']:
-        if a['id'] in features._idx.keys(): # MEP of leg 9 not in leg 8 training data
+        if a['id'] in features._idx.keys():  # MEP of leg 9 not in leg 8 training data
             vec[a['id']] = 1
         vec[a['nationality']] = 1
         if a['group'] in features._idx.keys():
@@ -116,6 +118,7 @@ def get_features(datum, features):
 
     return vec.as_array()
 
+
 def get_features_dossiers(datum, features):
     vec = features.new_vector()
 
@@ -125,7 +128,7 @@ def get_features_dossiers(datum, features):
     if dossier['dossier_type'] in features._idx.keys():
         vec[dossier['dossier_type']] = 1
     vec[dossier['legal_act']] = 1
-    vec[dossier['committee']] = 1 #TODO check if committee is in features am2json
+    vec[dossier['committee']] = 1  # TODO check if committee is in features am2json
     vec['bias'] = 1
     return vec.as_array()
 
@@ -133,17 +136,28 @@ def get_features_dossiers(datum, features):
 def main(docxfile, model_path, model='WarOfWords'):
     TrainedModel = getattr(warofwords, 'Trained' + model)
     trained = TrainedModel.load(model_path)
-    featmat = list()
-    for datum in am2json.extract_amendments(docxfile):
-        test = get_features(datum, trained.features)
-        featmat.append(test)
-
-    vec_dossier = get_features_dossiers(datum, trained.features)
-    featmat.append(vec_dossier)
+    featmat = get_featmat(docxfile, trained)
     scores = trained.probabilities(np.array(featmat))
     for datum, score in zip(am2json.extract_amendments(docxfile), scores):
         yield datum, score
 
+
+def get_featmat(docxfile, trained):
+    featmat = list()
+    for datum in am2json.extract_amendments(docxfile):
+        test = get_features(datum, trained.features)
+        featmat.append(test)
+    vec_dossier = get_features_dossiers(datum, trained.features)
+    featmat.append(vec_dossier)
+    return np.array(featmat)
+
+
+def main4test_with_zenodo_data(featmat, model_path, model='WarOfWords'):
+    TrainedModel = getattr(warofwords, 'Trained' + model)
+    trained = TrainedModel.load(model_path)
+    scores = trained.probabilities(np.array(featmat))
+    for datum, score in zip(am2json.extract_amendments(docxfile), scores):
+        yield datum, score
 
 
 if __name__ == '__main__':
