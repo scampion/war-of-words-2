@@ -123,7 +123,7 @@ def get_features(datum, features):
     return vec.as_array()
 
 
-def get_features_dossiers(datum, features):
+def get_features_dossier(datum, features):
     vec = features.new_vector()
 
     dossier = datum
@@ -137,23 +137,31 @@ def get_features_dossiers(datum, features):
     return vec.as_array()
 
 
-def main(docxfile, model_path, model='WarOfWords'):
-    TrainedModel = getattr(warofwords, 'Trained' + model)
-    trained = TrainedModel.load(model_path)
-    featmat = get_featmat(docxfile, trained)
-    scores = trained.probabilities(np.array(featmat))
-    for datum, score in zip(am2json.extract_amendments(docxfile), scores):
-        yield datum, score
 
 
 def get_featmat(docxfile, trained):
-    featmat = list()
+    am_per_article = {}
     for datum in am2json.extract_amendments(docxfile):
-        test = get_features(datum, trained.features)
-        featmat.append(test)
-    vec_dossier = get_features_dossiers(datum, trained.features)
-    featmat.append(vec_dossier)
-    return np.array(featmat)
+        if datum['article'] not in am_per_article:
+            am_per_article[datum['article']] = []
+        am_per_article[datum['article']].append(datum)
+
+    for article, am_list in am_per_article.items():
+        featmat = [get_features(datum, trained.features) for datum in am_list]
+        vec_dossier = get_features_dossier(datum, trained.features)
+        featmat.append(vec_dossier)
+        am_list.append('statuquo')
+        yield article, am_list, np.array(featmat)
+
+
+def main(docxfile, model_path, model='WarOfWords'):
+    TrainedModel = getattr(warofwords, 'Trained' + model)
+    trained = TrainedModel.load(model_path)
+    for article, am_list, featmat in get_featmat(docxfile, trained):
+        scores = trained.probabilities(featmat)
+        for datum, score in zip(am_list, scores):
+            yield article, datum, score
+
 
 
 def main4test_with_zenodo_data(featmat, model_path, model='WarOfWords'):
@@ -165,5 +173,6 @@ def main4test_with_zenodo_data(featmat, model_path, model='WarOfWords'):
 
 
 if __name__ == '__main__':
-    for datum, score in main(sys.argv[1], sys.argv[2]):
-        print(score, datum['text_original'], datum['text_amended'])
+    for article, datum, score in main(sys.argv[1], sys.argv[2]):
+        datum = datum if type(datum) == str else datum['amendment_num']
+        print(f"Article: {article: <60} | Amendment ID: {datum: <20} | Score: {score}")
