@@ -62,8 +62,11 @@ def get_text_features(datum):
         text_del) + ' <con>' + ' <con>'.join(text_context_r) + ' <ins>' + ' <ins>'.join(text_ins)
     feats_edit = model_edit.get_sentence_vector(text_datum)
 
-    text_datum_title = ' '.join([re.sub('\d', 'D', w.lower()) for w in word_tokenize(datum['dossier_title'])])
-    feats_title = model_title.get_sentence_vector(text_datum_title)
+    if 'dossier_title' in datum:
+        text_datum_title = ' '.join([re.sub('\d', 'D', w.lower()) for w in word_tokenize(datum['dossier_title'])])
+        feats_title = model_title.get_sentence_vector(text_datum_title)
+    else:
+        feats_title = np.zeros_like(feats_edit)
     return feats_edit.tolist(), feats_title.tolist()
 
 
@@ -157,7 +160,7 @@ def main4test_with_zenodo_data(featmat, model_path, model='WarOfWords'):
     TrainedModel = getattr(warofwords, 'Trained' + model)
     trained = TrainedModel.load(model_path)
     scores = trained.probabilities(np.array(featmat))
-    for datum, score in zip(am2json.extract_amendments(docxfile), scores):
+    for datum, score in zip(featmat, scores):
         yield datum, score
 
 
