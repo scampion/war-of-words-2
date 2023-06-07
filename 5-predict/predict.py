@@ -141,10 +141,11 @@ def get_features_dossier(datum, features):
 
 def get_featmat(docxfile, trained):
     am_per_article = {}
-    for datum in am2json.extract_amendments(docxfile):
-        if datum['article'] not in am_per_article:
-            am_per_article[datum['article']] = []
-        am_per_article[datum['article']].append(datum)
+    for i, datum in enumerate(am2json.extract_amendments(docxfile)):
+        article = datum['article'] if 'article' in datum else f"article not found {i}"
+        if article not in am_per_article:
+            am_per_article[article] = []
+        am_per_article[article].append(datum)
 
     for article, am_list in am_per_article.items():
         featmat = [get_features(datum, trained.features) for datum in am_list]
