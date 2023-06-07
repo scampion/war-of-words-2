@@ -32,10 +32,13 @@ if uploaded_file is not None:
         tmp_file.seek(0)
         docx_content = tmp_file.name
         for i, (datum, score) in enumerate(predict.main(docx_content, model_path)):
-            st.subheader(f'Amendment {i + 1}')
-            st.markdown("**Edit type:** " + datum.get('edit_type', ' '))
-            st.markdown('**Text original:** ' +  ' '.join(datum['text_original']))
-            st.markdown('**Text amended:** ' + ' '.join(datum['text_amended']))
+            st.subheader(f'Amendment ' + datum.get('amendment_num', ' '))
+            try:
+              st.markdown("**Edit type:** " + datum.get('edit_type', ' '))
+              st.markdown('**Text original:** ' +  ' '.join(datum['text_original']))
+              st.markdown('**Text amended:** ' + ' '.join(datum['text_amended']))
+            except Exception as e:
+              st.markdown('Error ' + str(e))
             st.write(f'Probability of success: {score:.4f}')
             st.progress(int(score*100), text=str(int(score*100)))
             st.write('---')
