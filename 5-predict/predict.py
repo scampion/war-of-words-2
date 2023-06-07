@@ -1,6 +1,7 @@
 import logging
 import json
 import logging
+import os.path
 import re
 import sys
 
@@ -14,6 +15,8 @@ import fasttext
 
 import am2json
 
+import nltk
+nltk.download('punkt')
 
 def docx2json(docxfile):
     return json.dumps(docxfile)
@@ -21,8 +24,9 @@ def docx2json(docxfile):
 
 legislature = str(8)
 task = 'new_edit-full'
-model_edit = fasttext.load_model('../data/ep' + legislature + '-' + task + '-edit.bin')
-model_title = fasttext.load_model('../data/ep' + legislature + '-' + task + '-title.bin')
+if os.path.exists('../data/ep' + legislature + '-' + task + '-edit.bin'):
+    model_edit = fasttext.load_model('../data/ep' + legislature + '-' + task + '-edit.bin')
+    model_title = fasttext.load_model('../data/ep' + legislature + '-' + task + '-title.bin')
 
 
 def add_text_features(features, dim):

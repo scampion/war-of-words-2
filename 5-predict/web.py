@@ -1,5 +1,8 @@
 from io import StringIO
+import os
 from tempfile import NamedTemporaryFile
+
+import fasttext as fasttext
 from annotated_text import annotated_text
 
 import requests
@@ -9,18 +12,31 @@ import numpy as np
 
 import predict
 
-model_path = '../2-training/trained-models/ep8-all_features-text-chronological.predict'
+
+legislature = str(8)
+task = 'new_edit-full'
+
+if os.path.exists('ep8-all_features-text-chronological.predict'):
+    model_path = 'ep8-all_features-text-chronological.predict'
+    predict.model_edit = fasttext.load_model('ep' + legislature + '-' + task + '-edit.bin')
+    predict.model_title = fasttext.load_model('ep' + legislature + '-' + task + '-title.bin')
+
+else:
+    model_path = '../2-training/trained-models/ep8-all_features-text-chronological.predict'
+
 
 st.title('🪖 War of Words 💬')
 st.subheader('Predicting the success of amendment in the European Parliament')
 st.write('Beta version')
-# st.write('This is a **beta application** based on the War of Words project. '
-#          'The goal of this project was to study the dynamics of the legislative process in the European Parliament.'
-#          'We propose to use the machine learning model implemented in that scientific article for predicting the success of amendment')
-#
-# st.markdown(
-#     '> [Kristof, V., Grossglauser, M., Thiran, P., War of Words: The Competitive Dynamics of Legislative Processes, The Web Conference, April 20-24, 2020, Taipei, Taiwan](https://infoscience.epfl.ch/record/275473/files/kristof2020war.pdf)')
-# st.write('A complete documentation will appear at the end of that page after a prediction is made.')
+st.write('This is a **beta application** based on the War of Words project. '
+         'The goal of this project was to study the dynamics of the legislative process in the European Parliament.'
+         'We propose to use the machine learning model implemented in that scientific article for predicting the success of amendment')
+
+st.markdown(
+    '> Kristof, V., Grossglauser, M., Thiran, P., '
+    '[War of Words: The Competitive Dynamics of Legislative Processes](https://infoscience.epfl.ch/record/275473/files/kristof2020war.pdf),'
+    ' The Web Conference, April 20-24, 2020, Taipei, Taiwan)')
+st.write('A complete documentation will appear at the end of that page after a prediction is made.')
 
 
 
@@ -77,6 +93,15 @@ def amlist_to_dataframe(amlist):
                    'probability in %': int(score * 100)})
     return pd.DataFrame(df)
 
+import warofwords
+
+model = 'WarOfWords'
+TrainedModel = getattr(warofwords, 'Trained' + model)
+trained = TrainedModel.load(model_path)
+st.write(len(trained.features))
+st.write("---")
+
+
 st.markdown('## Summary')
 md = list(structure(docx_content).values())
 md = md[0][0][0]
@@ -92,6 +117,8 @@ d += "|__Title__| " + md['dossier_title'] + " |" + "\n"
 st.markdown(d)
 st.write('---')
 
+
+
 for article, am_list in structure(docx_content).items():
     st.markdown(f'### Article {article}')
     df = amlist_to_dataframe(am_list)
@@ -104,6 +131,7 @@ if st.button('Show details'):
 
     st.markdown('## Details')
     current_article = None
+
     for i, (article, datum, score) in enumerate(predict.main(docx_content, model_path)):
         if article != current_article:
             st.write('---')
