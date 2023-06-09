@@ -91,10 +91,17 @@ def amlist_to_dataframe(amlist):
     df = list()
     for i, (datum, score) in enumerate(amlist):
         am = 'statuquo' if type(datum) == str and datum == 'statuquo' else 'amendment ' + datum.get('amendment_num', '')
+        if am == 'statuquo':
+            link = ''
+        else:
+            link = f"<a href='#amendment-{datum['amendment_num']}-edit-{datum['edit_id']}' style='text-decoration: none;' >🔗</a>"
         df.append({'amendment': am,
                    'edit': datum.get('edit_id', '') if type(datum) == dict else '',
                    'stars': get_stars(score),
-                   'probability in %': int(score * 100)})
+                   'probability in %': int(score * 100),
+                   'link': link
+                   }
+                  )
     return pd.DataFrame(df)
 
 import warofwords
@@ -128,7 +135,8 @@ for article, am_list in structure(docx_content).items():
     df = amlist_to_dataframe(am_list)
     styler = df.style.hide().format(subset=['probability in %'], decimal=',', precision=2)\
         .bar(subset=['probability in %'], align="mid", vmax=100, color=['#2841ff', '#d7be00'])
-    st.write(styler.to_html(), unsafe_allow_html=True)
+    st.write(styler.to_html(escape=False, index=False), unsafe_allow_html=True)
+    #st.write(your_dataframe.to_html(escape=False, index=False), unsafe_allow_html=True)
     st.write('---')
 
 
@@ -141,12 +149,12 @@ for i, (article, datum, score) in enumerate(predict.main(docx_content, model_pat
         st.markdown(f'## Article {article}')
         current_article = article
         df = pd.DataFrame()
-
-    if type(datum) == str and datum == 'statuquo':
-        st.markdown('### Statu quo')
+    elif type(datum) == str and datum == 'statuquo':
+        pass
     else:
         st.markdown('### Amendment ' + datum.get('amendment_num', ' ') + ' Edit ' + str(datum.get('edit_id', '')))
         try:
+            st.progress(int(score * 100), text=f'Probability of success: {score * 100:.2f}%')
             st.markdown("**Author(s):** " + ', '.join([a['name'] + ' (' + a['group']+')' for a in datum.get('authors', ' ')]))
             st.markdown("**Edit type:** " + datum.get('edit_type', ' '))
             col1, col2 = st.columns(2)
@@ -172,8 +180,6 @@ for i, (article, datum, score) in enumerate(predict.main(docx_content, model_pat
                     m = datum['text_amended'].split()[datum['edit_indices']['j1']:datum['edit_indices']['j2']]
                     e = datum['text_amended'].split()[datum['edit_indices']['j2']:]
                     annotated_text(' '.join(b), (' '.join(m), 'inserted', "#afa"), ' '.join(e))
-                    st.json([datum['text_amended']])
-                    st.json(datum['edit_indices'])
             elif datum.get('edit_type', ' ') == 'replace':
                 with col1:
                     st.markdown("#### Text original")
@@ -181,37 +187,13 @@ for i, (article, datum, score) in enumerate(predict.main(docx_content, model_pat
                     m = datum['text_original'].split()[datum['edit_indices']['i1']:datum['edit_indices']['i2']]
                     e = datum['text_original'].split()[datum['edit_indices']['i2']:]
                     annotated_text(' '.join(b), (' '.join(m), 'deleted', "#faa"), ' '.join(e))
-                    st.json([datum['text_original']])
-                    st.json(datum['edit_indices'])
                 with col2:
                     st.markdown("#### Text amended")
                     b = datum['text_amended'].split()[:datum['edit_indices']['j1']]
                     m = datum['text_amended'].split()[datum['edit_indices']['j1']:datum['edit_indices']['j2']]
                     e = datum['text_amended'].split()[datum['edit_indices']['j2']:]
-                    annotated_text(' '.join(b), (' '.join(m), 'inserted', "#afa"), ' '.join(e))
-                    st.json([datum['text_amended']])
-                    st.json(datum['edit_indices'])
-
-
-
-                # annotated_text(
-                #     "This ",
-                #     ("is", "verb"),
-                #     " some ",
-                #     ("annotated", "adj"),
-                #     ("text", "noun"),
-                #     " for those of ",
-                #     ("you", "pronoun"),
-                #     " who ",
-                #     ("like", "verb"),
-                #     " this sort of ",
-                #     ("thing", "noun"),
-                #     "."
-                # )
-            # st.json(datum)
+                    annotated_text(' '.join(b), (' '.join(m), 'replaced', "#d7be00"), ' '.join(e))
         except Exception as e:
             st.markdown('Error ' + str(e))
-    st.write(f'Probability of success: {score:.4f}')
-    st.progress(int(score * 100), text=str(int(score * 100)))
 
 st.markdown(open('docs.md').read())
