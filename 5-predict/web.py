@@ -165,8 +165,6 @@ for i, (article, datum, score) in enumerate(predict.main(docx_content, model_pat
                     m = datum['text_original'].split()[datum['edit_indices']['i1']:datum['edit_indices']['i2']]
                     e = datum['text_original'].split()[datum['edit_indices']['i2']:]
                     annotated_text(' '.join(b), (' '.join(m), 'deleted', "#faa"), ' '.join(e))
-                    st.json([datum['text_original']])
-                    st.json(datum['edit_indices'])
                 with col2:
                     st.markdown("#### Text amended")
                     st.markdown(datum['text_amended'])
